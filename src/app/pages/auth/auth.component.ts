@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 interface Usuario{
   name: string;
@@ -21,7 +22,8 @@ isLoginMode = true;
 
 constructor(
   private fb: FormBuilder,
-  private router: Router
+  private router: Router,
+  private authService: AuthService
 ){}
 
 ngOnInit(): void {
@@ -38,47 +40,28 @@ setupForm():void{
 toggleMode(): void{
   this.isLoginMode = !this.isLoginMode;
 }
-getUsuarios(): Usuario[]{
-  const dados= localStorage.getItem('usuarios');
-  return dados? JSON.parse(dados) : [];
-}
 
-salvarUsuarios(lista: Usuario[]):void{
-  localStorage.setItem('usuarios', JSON.stringify(lista))
-}
 
 onSubmit(): void{
-  console.log('Form submit enviado');
-  if(this.form.invalid)return;
-  console.log('Form invalido', this.form.errors)
+if( this.form.invalid)return;
 
-  const {name, email,password} = this.form.value;
-  const usuarios = this.getUsuarios();
+const{name, email, password} = this.form.value;
 
-  if(this.isLoginMode){
-    const usuario = usuarios.find(u => u.email === email && u.password === password);
+if(this.isLoginMode){
+  this.authService.login({email, password}).subscribe(usuario =>{
     if(usuario){
-      console.log('login bem sucedido!',usuario);
-      localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
-      this.router.navigate(['/home']);
+      localStorage.setItem('usuarioLogado', JSON.stringify(usuario))
+      this.router.navigate(['/home'])
     }else{
-      alert('Email ou senha invalidos!');
+      alert('Email ou senha invalidos')}
+  })
+}else{
+   this.authService.cadastrar({name, email, password}).subscribe(msg =>{
+        alert(msg)
+        this.toggleMode()
+        this.form.reset()
+      })
     }
-  }else{
-   const usuarioJaExiste = usuarios.some(u => u.email===email)
-
-   if(usuarioJaExiste){
-    alert('Este email ja esta cadastrado!');
-    return;
-   }
-
-   const novoUsuario : Usuario = {name, email, password};
-   usuarios.push(novoUsuario);
-   this.salvarUsuarios(usuarios);
-   alert('Cadastro criado com sucesso!');
-   this.toggleMode();
-   this.form.reset();
-  }
-
 }
 }
+
